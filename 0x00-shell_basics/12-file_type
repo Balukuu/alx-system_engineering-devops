@@ -1,1 +1,2 @@
-#!/bin/bash; file_type=$(file /tmp/iamafile); echo "the file is: $file_type"
+#!/bin/bash
+file /tmp/iamfile
