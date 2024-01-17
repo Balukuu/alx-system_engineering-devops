@@ -1,8 +1,8 @@
 import requests
 
-def count_words(subreddit, word_list, after=None, count_dict=None):
-    if count_dict is None:
-        count_dict = {}
+def recurse(subreddit, hot_list=None, after=None):
+    if hot_list is None:
+        hot_list = []
 
     if after is None:
         url = f'https://www.reddit.com/r/{subreddit}/hot.json'
@@ -13,33 +13,36 @@ def count_words(subreddit, word_list, after=None, count_dict=None):
 
     try:
         response = requests.get(url, headers=headers, allow_redirects=False)
+        response.raise_for_status()
         data = response.json()
         posts = data.get('data', {}).get('children', [])
         for post in posts:
-            title = post.get('data', {}).get('title', '').lower()
-            for word in word_list:
-                word = word.lower()
-                if word in title:
-                    count_dict[word] = count_dict.get(word, 0) + title.count(word)
+            title = post.get('data', {}).get('title', '')
+            hot_list.append(title)
 
         after = data.get('data', {}).get('after', None)
         if after:
-            return count_words(subreddit, word_list, after, count_dict)
+            return recurse(subreddit, hot_list, after)
         else:
-            sorted_counts = sorted(count_dict.items(), key=lambda x: (-x[1], x[0]))
-            for word, count in sorted_counts:
-                print(f'{word}: {count}')
-    except Exception as e:
-        print(f"Error: {e}")
+            return hot_list
+    except requests.exceptions.HTTPError as e:
+        if response.status_code == 404:
+            print(f"Error: Subreddit '{subreddit}' not found.")
+            return None
+        else:
+            print(f"Error: {e}")
+            return None
 
 if __name__ == '__main__':
     import sys
 
-    if len(sys.argv) < 3:
-        print("Usage: {} <subreddit> <list of keywords>".format(sys.argv[0]))
-        print("Ex: {} programming 'python java javascript'".format(sys.argv[0]))
+    if len(sys.argv) < 2:
+        print("Please pass an argument for the subreddit to search.")
     else:
         subreddit = sys.argv[1]
-        word_list = sys.argv[2].split()
-        count_words(subreddit, word_list)
+        result = recurse(subreddit)
+        if result is not None:
+            print(len(result))
+        else:
+            print("None")
 
